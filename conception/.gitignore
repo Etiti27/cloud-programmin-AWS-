@@ -1,0 +1,4 @@
+Development/.terraform/
+Development/.terraform.lock.hcl
+Development/.DS_Store
+.DS_Store
