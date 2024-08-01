@@ -14,8 +14,20 @@ resource "aws_internet_gateway" "chris_igw" {
     Name = "chris-internet-gateway"
   }
 }
+#create route table rule
+resource "aws_route_table" "chris_route_table" {
+  vpc_id = aws_vpc.Chris_vpc.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.chris_igw.id
+  }
+  tags = {
+    Name = "chris_route_table"
+  }
+}
 
-# Create a public subnet
+
+# Create a public subnet1
 resource "aws_subnet" "chris_public_subnet1" {
   vpc_id                  = aws_vpc.Chris_vpc.id
   cidr_block              = "10.0.1.0/24"
@@ -26,7 +38,7 @@ resource "aws_subnet" "chris_public_subnet1" {
   }
 }
 
-# Create a public subnet
+# Create a public subnet2
 resource "aws_subnet" "chris_public_subnet2" {
   vpc_id                  = aws_vpc.Chris_vpc.id
   cidr_block              = "10.0.2.0/24"
@@ -36,6 +48,8 @@ resource "aws_subnet" "chris_public_subnet2" {
     Name = "chris_public-subnet2"
   }
 }
+
+# Create a public subnet3
 resource "aws_subnet" "chris_public_subnet3" {
   vpc_id                  = aws_vpc.Chris_vpc.id
   cidr_block              = "10.0.3.0/24"
@@ -90,14 +104,14 @@ resource "aws_security_group" "chris_group" {
   }
 
   tags = {
-    Name = "my-security-group"
+    Name = "chris-security-group"
   }
 }
 
 # Define the first EC2 instance
 resource "aws_instance" "my_first_instance" {
-  ami             = "ami-04a81a99f5ec58529"
-  instance_type   = "t2.micro"
+  ami             = var.ami
+  instance_type   = var.instance_type
   subnet_id       = aws_subnet.chris_public_subnet1.id
   security_groups = [aws_security_group.chris_group.id]
 
@@ -108,8 +122,8 @@ resource "aws_instance" "my_first_instance" {
 
 # Define the second EC2 instance
 resource "aws_instance" "my_second_instance" {
-  ami             = "ami-04a81a99f5ec58529"
-  instance_type   = "t2.micro"
+  ami             = var.ami
+  instance_type   = var.instance_type
   subnet_id       = aws_subnet.chris_public_subnet2.id
   security_groups = [aws_security_group.chris_group.id]
 
@@ -120,8 +134,8 @@ resource "aws_instance" "my_second_instance" {
 
 # Define the third EC2 instance
 resource "aws_instance" "my_third_instance" {
-  ami             = "ami-04a81a99f5ec58529"
-  instance_type   = "t2.micro"
+  ami             = var.ami
+  instance_type   = var.instance_type
   subnet_id       = aws_subnet.chris_public_subnet3.id
   security_groups = [aws_security_group.chris_group.id]
 
@@ -130,57 +144,100 @@ resource "aws_instance" "my_third_instance" {
   }
 }
 
-
+# create launch launch_configuration for aws_autoscaling_group
 resource "aws_launch_configuration" "chris_launch_configuration" {
   name          = "chris_launch_configuration"
-  image_id      = "ami-04a81a99f5ec58529"  
-  instance_type = "t2.micro"
+  image_id      = var.ami
+  instance_type = var.instance_type
+  security_groups = [aws_security_group.chris_group.id]
 }
 
 # Define the Auto Scaling Group
 resource "aws_autoscaling_group" "chris_autoscaling_group" {
-  desired_capacity     = 2
+  desired_capacity     = 1
   max_size             = 3
   min_size             = 1
-  vpc_zone_identifier  = [aws_subnet.chris_public_subnet1.id, aws_subnet.chris_public_subnet2.id,aws_subnet.chris_public_subnet3.id]
+  vpc_zone_identifier  = [aws_subnet.chris_public_subnet1.id, aws_subnet.chris_public_subnet2.id, aws_subnet.chris_public_subnet3.id]
   launch_configuration = aws_launch_configuration.chris_launch_configuration.id
+}
+
+#  associating the route table to different subnet1
+resource "aws_route_table_association" "subnet1" {
+  subnet_id      = aws_subnet.chris_public_subnet1.id
+  route_table_id = aws_route_table.chris_route_table.id
+}
+
+#  associating the route table to different subnet2
+resource "aws_route_table_association" "subnet2" {
+  subnet_id      = aws_subnet.chris_public_subnet2.id
+  route_table_id = aws_route_table.chris_route_table.id
+}
+
+resource "aws_route_table_association" "subnet3" {
+  subnet_id      = aws_subnet.chris_public_subnet3.id
+  route_table_id = aws_route_table.chris_route_table.id
+}
+
+# creating loadbalancer
+resource "aws_lb" "chris_lb" {
+  name               = "chrislb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.chris_group.id]
+  subnets            = [aws_subnet.chris_public_subnet1.id, aws_subnet.chris_public_subnet2.id, aws_subnet.chris_public_subnet3.id]
+  tags = {
+    name = "chris_loadbalancer"
+  }
+}
+
+resource "aws_lb_target_group" "chris_target_group" {
+  name     = "chris-target-group"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.Chris_vpc.id
+
+  health_check {
+    path = "/"
+  }
+  tags = {
+    Name = "chris-target-group"
+  }
+}
+resource "aws_lb_target_group_attachment" "chris-lbtg1" {
+  target_group_arn = aws_lb_target_group.chris_target_group.arn
+  target_id        = aws_instance.my_first_instance.id
+  port             = 80
+}
+resource "aws_lb_target_group_attachment" "chris-lbtg2" {
+  target_group_arn = aws_lb_target_group.chris_target_group.arn
+  target_id        = aws_instance.my_second_instance.id
+  port             = 80
+}
+resource "aws_lb_target_group_attachment" "chris-lbtg3" {
+  target_group_arn = aws_lb_target_group.chris_target_group.arn
+  target_id        = aws_instance.my_third_instance.id
+  port             = 80
+}
+
+
+resource "aws_lb_listener" "httplistener" {
+  load_balancer_arn = aws_lb.chris_lb.arn
+  port              = "80"
+  protocol          = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.chris_target_group.arn
+  }
 }
 
 
 
-
-
-
-
-
-
-
-
-# Create a route table
-# resource "aws_route_table" "public_route_table" {
-#   vpc_id = aws_vpc.my_vpc.id
-
-#   route {
-#     cidr_block = "0.0.0.0/0"
-#     gateway_id = aws_internet_gateway.my_igw.id
-#   }
-
-#   tags = {
-#     Name = "public-route-table"
-#   }
-# }
-
-# # Associate route table with the subnet
-# resource "aws_route_table_association" "public_subnet_assoc" {
-#   subnet_id      = aws_subnet.public_subnet.id
-#   route_table_id = aws_route_table.public_route_table.id
-# }
-
-# # Output the VPC ID and subnet ID
-# output "vpc_id" {
-#   value = aws_vpc.my_vpc.id
-# }
-
-# output "public_subnet_id" {
-#   value = aws_subnet.public_subnet.id
-# }
+output "public_ip1" {
+  value = aws_instance.my_first_instance.public_ip
+}
+output "public_ip2" {
+  value = aws_instance.my_second_instance.public_ip
+}
+output "public_ip3" {
+  value = aws_instance.my_third_instance.public_ip
+}
