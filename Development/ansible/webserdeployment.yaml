@@ -1,0 +1,69 @@
+---
+- name: Deploy application
+  hosts: all
+  become: yes
+  vars_files:
+    - env_files.yaml
+  tasks:
+    - name: Update package information
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+
+    - name: Add Docker’s official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Set up the stable Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable  # Replace 'focal' with your Ubuntu codename
+        state: present
+
+    - name: Install Docker Engine
+      apt:
+        name: docker-ce
+        state: present
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_version
+
+    - name: Print Docker version
+      debug:
+        msg: "Docker version: {{ docker_version.stdout }}"
+
+    - name: build docker compose
+      shell: |
+        curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+        docker-compose --version
+
+ 
+    - name: Synchronize files to remote server excluding certain patterns
+      ansible.builtin.synchronize:
+        src: /Users/obinna/Desktop/IU/Cloud Programming/Development/Webapp
+        dest: /home/ubuntu
+        rsync_opts:
+          - "--exclude='/Development/Webapp/backend/node_modules'"
+          - "--exclude='/Development/Webapp/frontend/node_modules'"
+
+    - name: run docker compose command
+      shell: |
+        cd /home/ubuntu/Webapp 
+        chmod +x docker-compose.yml
+        docker compose up --build

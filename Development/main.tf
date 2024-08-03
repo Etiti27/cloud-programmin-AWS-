@@ -77,6 +77,13 @@ resource "aws_security_group" "chris_group" {
     cidr_blocks = ["0.0.0.0/0"]
     description = "Allow container access"
   }
+   ingress {
+    from_port   = 4000
+    to_port     = 4000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow container access"
+  }
 
   ingress {
     from_port   = 80
@@ -114,6 +121,7 @@ resource "aws_instance" "my_first_instance" {
   instance_type   = var.instance_type
   subnet_id       = aws_subnet.chris_public_subnet1.id
   security_groups = [aws_security_group.chris_group.id]
+  key_name = var.key_name
 
   tags = {
     Name = "my_first_instance"
@@ -126,6 +134,7 @@ resource "aws_instance" "my_second_instance" {
   instance_type   = var.instance_type
   subnet_id       = aws_subnet.chris_public_subnet2.id
   security_groups = [aws_security_group.chris_group.id]
+  key_name = var.key_name
 
   tags = {
     Name = "my_second_instance"
@@ -138,6 +147,7 @@ resource "aws_instance" "my_third_instance" {
   instance_type   = var.instance_type
   subnet_id       = aws_subnet.chris_public_subnet3.id
   security_groups = [aws_security_group.chris_group.id]
+  key_name = var.key_name
 
   tags = {
     Name = "my_third_instance"
