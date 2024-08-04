@@ -59,6 +59,22 @@ resource "aws_subnet" "chris_public_subnet3" {
     Name = "chris_public-subnet3"
   }
 }
+#  associating the route table to different subnet1
+resource "aws_route_table_association" "subnet1" {
+  subnet_id      = aws_subnet.chris_public_subnet1.id
+  route_table_id = aws_route_table.chris_route_table.id
+}
+
+#  associating the route table to different subnet2
+resource "aws_route_table_association" "subnet2" {
+  subnet_id      = aws_subnet.chris_public_subnet2.id
+  route_table_id = aws_route_table.chris_route_table.id
+}
+
+resource "aws_route_table_association" "subnet3" {
+  subnet_id      = aws_subnet.chris_public_subnet3.id
+  route_table_id = aws_route_table.chris_route_table.id
+}
 
 # Create security group
 resource "aws_security_group" "chris_group" {
@@ -169,23 +185,6 @@ resource "aws_autoscaling_group" "chris_autoscaling_group" {
   min_size             = 1
   vpc_zone_identifier  = [aws_subnet.chris_public_subnet1.id, aws_subnet.chris_public_subnet2.id, aws_subnet.chris_public_subnet3.id]
   launch_configuration = aws_launch_configuration.chris_launch_configuration.id
-}
-
-#  associating the route table to different subnet1
-resource "aws_route_table_association" "subnet1" {
-  subnet_id      = aws_subnet.chris_public_subnet1.id
-  route_table_id = aws_route_table.chris_route_table.id
-}
-
-#  associating the route table to different subnet2
-resource "aws_route_table_association" "subnet2" {
-  subnet_id      = aws_subnet.chris_public_subnet2.id
-  route_table_id = aws_route_table.chris_route_table.id
-}
-
-resource "aws_route_table_association" "subnet3" {
-  subnet_id      = aws_subnet.chris_public_subnet3.id
-  route_table_id = aws_route_table.chris_route_table.id
 }
 
 # creating loadbalancer
