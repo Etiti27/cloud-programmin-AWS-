@@ -66,4 +66,4 @@
       shell: |
         cd /home/ubuntu/Webapp 
         chmod +x docker-compose.yml
-        docker compose up --build
+        docker compose up --build -d
